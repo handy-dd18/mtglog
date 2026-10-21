@@ -25,6 +25,12 @@ from mtglog.app import create_app
 from mtglog.config import Config
 
 PORT = 8799
+BROWSER_ARGS = [
+    "--use-fake-ui-for-media-stream",
+    "--use-fake-device-for-media-stream",
+    "--auto-select-desktop-capture-source=Entire screen",
+    "--autoplay-policy=no-user-gesture-required",
+]
 
 
 def start_server(out: Path) -> tuple[uvicorn.Server, threading.Thread]:
@@ -44,14 +50,7 @@ def main() -> int:
 
     errors: list[str] = []
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            args=[
-                "--use-fake-ui-for-media-stream",
-                "--use-fake-device-for-media-stream",
-                "--auto-select-desktop-capture-source=Entire screen",
-                "--autoplay-policy=no-user-gesture-required",
-            ]
-        )
+        browser = p.chromium.launch(args=BROWSER_ARGS)
         page = browser.new_page()
         page.on("pageerror", lambda e: errors.append(str(e)))
         # サーバーを止めている間の接続失敗は想定どおりなので除く

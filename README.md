@@ -106,13 +106,15 @@ docker compose -f docker/compose.yaml -f docker/compose.cpu.yaml up --build
 
 1. 会議に Teams / Zoom のアプリで参加する（会議には Edge で参加しない）。
 2. Edge で `http://localhost:8765/` を開く。初回はマイクの利用を「許可」する。
-3. 「マイク」がヘッドセットのマイクになっているか確かめる。「既定の再生デバイス」に警告が出ていたら、初回の準備の 2 を見直す。
+3. 「マイク」がヘッドセットのマイクになっているか確かめる。「スピーカー（相手の声の取得元）」に、ヘッドセットの名前が出ているかも確かめる。スピーカーはこのページでは選べない。違っていたら、初回の準備の 2 と 3 を見直す（Windows の既定の再生デバイスと Teams / Zoom のスピーカーを同じにする）。
 4. 「記録を開始」を押す。画面共有の選択画面が開くので、**「画面全体」** を選び、**「システム オーディオも共有する」をオン** にして「共有」を押す。画面の映像は使わない。
 5. 画面上部が「● 記録中」になり、自分・相手の音量メーターが動けば記録できている。確定した発話は順に表示される。
 6. 会議が終わったら「記録を停止」を押す。表示された保存先に結果が残る。
 
 > [!IMPORTANT]
 > Teams / Zoom のミュートとは連動しない。このアプリは Edge からマイクを直接開いているので、会議ツールでミュートにしている間に話したことも、「自分」として文字起こしされ、録音にも残る。
+
+記録中に相手の発話がないまま 2 分たつと（記録の開始時と、デバイスを抜き差しした後）、取得ページに警告が出る。自分も相手も話さないまま 2 分たったときも警告が出る。スピーカーの設定のずれや、記録の止め忘れに気づくためのもので、記録は止まらない。警告は「閉じる」で消せる。時間は `--silence-warning-sec`（秒、0 で無効）で変えられる。
 
 記録中は Edge のタブを背景にしてよい。閉じると記録が止まるので、閉じないこと。サーバーとの接続が切れても、ページは自動で再接続し、切れている間の音声（最大 60 秒）を送り直す。
 
@@ -136,7 +138,7 @@ docker compose -f docker/compose.yaml -f docker/compose.cpu.yaml up --build
 | Edge で `http://localhost:8765/` が開けない | WSL でサーバーが起動しているか。WSL で `curl http://127.0.0.1:8765/` が成功するか。成功するのに Edge から開けない場合は、WSL の localhost 転送（`.wslconfig` の `localhostForwarding`）の設定を確かめる |
 | マイクの一覧に名前が出ない | Edge のアドレスバー左のアイコンから、マイクを「許可」にしたか |
 | 「音声が共有されませんでした」と出る | 共有の選択画面で「画面全体」を選び、「システム オーディオも共有する」をオンにしたか |
-| 相手のメーターが動かない | 会議の音が出ているデバイスが、Windows の既定の再生デバイスになっているか |
+| 相手のメーターが動かない、「相手の音声が届いていません」と出る | Teams / Zoom のスピーカーと、Windows の既定の再生デバイス（取得ページの「スピーカー」）が同じか。Windows の「サウンド」の「既定の通信デバイス」や、音量ミキサーのアプリごとの出力先で、会議ツールだけ別のデバイスになっていないか |
 | 文字起こしが遅い・警告が出る | GPU が使えず CPU で動いている可能性がある。起動時の「モデル:」の表示が `cuda` かを確かめる |
 | `uv: command not found` | uv を入れたあと、端末を開き直したか |
 | Docker で `could not select device driver "" with capabilities: [[gpu]]` | Docker から GPU を使えない。`-Cpu`（または `compose.cpu.yaml`）で起動するか、Docker Desktop / NVIDIA Container Toolkit を用意する |
@@ -147,6 +149,7 @@ docker compose -f docker/compose.yaml -f docker/compose.cpu.yaml up --build
 cd server && uv run pytest                 # サーバーの単体テスト
 MTGLOG_GPU_TESTS=1 uv run pytest           # 実モデルを使う結合テスト（GPU、モデル取得済み）
 uv run --with playwright python tests/e2e_browser.py   # ヘッドレス Chromium での通し確認（libasound2 が必要）
+uv run --with playwright python tests/e2e_silence.py   # 無音の警告の表示の確認（同上）
 cd web && npm test                         # 取得ページの単体テスト
 ```
 

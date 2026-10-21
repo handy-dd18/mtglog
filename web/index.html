@@ -28,6 +28,8 @@
   #notices:empty { display:none; }
   #notices div { padding:6px 10px; border-radius:6px; margin:4px 0; border:1px solid var(--line); }
   #notices .warn { border-color:var(--warn); } #notices .ng { border-color:var(--ng); }
+  #notices button.close { margin-left:8px; padding:0 8px; font-size:12px; }
+  .hint { margin:2px 0 0; }
   #transcript { list-style:none; margin:0; padding:0; max-height:60vh; overflow-y:auto; }
   #transcript li { padding:4px 0; border-top:1px solid var(--line); display:grid; grid-template-columns:auto auto 1fr; gap:8px; }
   #transcript .t { color:var(--muted); font-variant-numeric:tabular-nums; }
@@ -54,8 +56,9 @@
       <button id="btnSwitchMic" hidden>このマイクに切り替える</button>
       <button id="btnRefresh">一覧を更新</button>
     </div>
-    <div class="row">既定の再生デバイス: <span id="outputName" class="muted">取得中…</span></div>
-    <p class="muted" style="margin:4px 0 0">相手の声は「既定の再生デバイス」に出ている音から取ります。ヘッドセットを Windows の既定の再生デバイスにし、Teams / Zoom の出力先もヘッドセットにしてください。</p>
+    <div class="row">スピーカー（相手の声の取得元） <span id="outputName" class="muted">取得中…</span></div>
+    <p class="muted hint">相手の声は、Windows の既定の再生デバイスに出ている音から取ります。スピーカーはこのページでは変えられません。Windows の［設定］→［システム］→［サウンド］→［出力］で変えてください（<a href="ms-settings:sound">サウンド設定を開く</a>）。</p>
+    <p class="muted hint">Teams / Zoom のスピーカーも同じデバイスにしてください。違うデバイスに出た音は記録されません。</p>
   </section>
 
   <section>

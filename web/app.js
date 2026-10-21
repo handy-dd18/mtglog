@@ -1,7 +1,7 @@
 // 取得ページ（design 2章）。マイクと画面共有の音声を取得し、WebSocket で文字起こしサーバーへ送る。
 import {
   CHANNELS, SPEAKER_LABELS, SAMPLE_RATE, SendBuffer, backoffDelay, buildFrame, chooseInitialMic, defaultOutputInfo,
-  fmtOffset, insertIndex,
+  fmtOffset, insertIndex, silenceMessage,
 } from "./lib.js";
 
 const $ = (id) => document.getElementById(id);
@@ -27,6 +27,7 @@ let startedAt = 0;
 let wallStart = null; // 記録の原点の壁時計（サーバーの再起動後に引き継ぐ）
 let continuing = null; // サーバーが記録を失ったときに引き継ぐ情報
 const segments = [];
+const dismissed = new Set(); // 利用者が閉じた無音の警告（消えるまで再表示しない）
 
 // ---- 表示 ----
 function setState(next) {
@@ -40,7 +41,7 @@ function setState(next) {
   document.title = next === "recording" ? "● 記録中 - MTGログ" : "MTGログ";
 }
 
-function notice(id, text, level = "warn") {
+function notice(id, text, level = "warn", onClose = null) {
   let el = document.querySelector(`#notices [data-id="${id}"]`);
   if (!text) {
     el?.remove();
@@ -53,6 +54,13 @@ function notice(id, text, level = "warn") {
   }
   el.className = level;
   el.textContent = text;
+  if (onClose) {
+    const b = document.createElement("button");
+    b.className = "close";
+    b.textContent = "閉じる";
+    b.onclick = () => { el.remove(); onClose(); };
+    el.append(b);
+  }
 }
 
 function addSegment(seg) {
@@ -122,7 +130,7 @@ async function refreshDevices() {
   $("outputName").textContent = out ? out.name : "不明";
   $("outputName").className = out?.isHeadset ? "ok" : "warn";
   notice("output", out && !out.isHeadset
-    ? `既定の再生デバイス（${out.name}）がヘッドセットではない可能性があります。相手の声が取れないことがあります`
+    ? `スピーカー（${out.name}）がヘッドセットではない可能性があります。相手の声が取れないことがあります`
     : "", "warn");
 }
 
@@ -130,7 +138,11 @@ $("micSelect").addEventListener("change", () => {
   try { localStorage.setItem(MIC_KEY, $("micSelect").value); } catch { /* 無視 */ }
   $("btnSwitchMic").hidden = state === "idle";
 });
-navigator.mediaDevices.addEventListener("devicechange", () => refreshDevices());
+navigator.mediaDevices.addEventListener("devicechange", () => {
+  refreshDevices();
+  // 記録中のデバイスの変化は、相手の無音の計測をやり直す合図としてサーバーへ伝える（design 2.2, 3.6）
+  if (state !== "idle" && sessionId && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "device_changed" }));
+});
 $("btnRefresh").onclick = () => refreshDevices();
 
 // ---- 音声グラフ（design 2.4） ----
@@ -374,6 +386,16 @@ function onMessage(msg) {
     case "status":
       notice("server", msg.message, msg.level === "warning" ? "warn" : "ng");
       break;
+    case "silence": {
+      const id = `silence-${msg.kind}`;
+      if (!msg.active) {
+        dismissed.delete(id);
+        notice(id, "");
+      } else if (!dismissed.has(id)) {
+        notice(id, silenceMessage(msg.kind, msg.seconds), "warn", () => dismissed.add(id));
+      }
+      break;
+    }
     case "stopped":
       finish(`記録を終了しました。保存先: ${msg.output_dir}（${msg.segments} 件）`);
       break;
@@ -413,6 +435,8 @@ function finish(message, level = "ok") {
   $("outputDir").textContent = message;
   $("outputDir").className = level;
   notice("buffer", "");
+  for (const kind of ["remote", "both"]) notice(`silence-${kind}`, "");
+  dismissed.clear();
   $("btnSwitchMic").hidden = true;
 }
 

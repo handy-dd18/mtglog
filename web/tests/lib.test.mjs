@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   SendBuffer, backoffDelay, buildFrame, chooseInitialMic, defaultOutputInfo, floatToInt16, fmtOffset, insertIndex,
-  isHeadsetLabel, stripDefaultPrefix,
+  fmtDuration, isHeadsetLabel, silenceMessage, stripDefaultPrefix,
 } from "../lib.js";
 
 const KW = ["Headset", "ヘッドセット", "Jabra"];
@@ -91,4 +91,20 @@ test("SendBuffer: 受領確認済みの位置を覚える（サーバー再起�
   b.ack({ me: 3200, remote: 1600 });
   b.ack({ me: 1600 }); // 古い確認で巻き戻らない
   assert.deepEqual(b.acked, { me: 3200, remote: 1600 });
+});
+
+test("fmtDuration: 分で割り切れるときは分、それ以外は秒", () => {
+  assert.equal(fmtDuration(120), "2 分");
+  assert.equal(fmtDuration(90), "90 秒");
+  assert.equal(fmtDuration(3), "3 秒");
+});
+
+test("silenceMessage: 相手だけの無音と、両方の無音", () => {
+  const r = silenceMessage("remote", 120);
+  assert.match(r, /^相手の音声が 2 分間届いていません。/);
+  assert.match(r, /既定の再生デバイス/);
+  assert.match(r, /システム オーディオも共有する/);
+  const b = silenceMessage("both", 90);
+  assert.match(b, /^自分と相手のどちらの音声も 90 秒間届いていません。/);
+  assert.match(b, /記録を停止してください。$/);
 });

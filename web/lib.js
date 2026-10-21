@@ -61,6 +61,22 @@ export function defaultOutputInfo(devices, keywords) {
   return { label: d.label, name, isHeadset: isHeadsetLabel(name, keywords) };
 }
 
+/** 時間を「2 分」「90 秒」のように表す。 */
+export function fmtDuration(seconds) {
+  return seconds % 60 === 0 ? `${seconds / 60} 分` : `${seconds} 秒`;
+}
+
+/** 無音の警告の文（REQ-2.7, 2.8 / design 2.6）。 */
+export function silenceMessage(kind, seconds) {
+  const d = fmtDuration(seconds);
+  if (kind === "remote") {
+    return `相手の音声が ${d}間届いていません。Teams / Zoom のスピーカーと Windows の既定の再生デバイスが同じか、`
+      + "画面共有で「システム オーディオも共有する」をオンにしたかを確かめてください。";
+  }
+  return `自分と相手のどちらの音声も ${d}間届いていません。マイクが音を拾っているか、スピーカーの設定が合っているかを`
+    + "確かめてください。会議が終わっていれば、記録を停止してください。";
+}
+
 /** 再接続の待ち時間: 1 秒、2 秒、4 秒、以後 4 秒（design 2.5）。 */
 export function backoffDelay(attempt) {
   return [1000, 2000, 4000][Math.min(attempt, 2)];
