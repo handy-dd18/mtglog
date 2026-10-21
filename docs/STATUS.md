@@ -10,7 +10,7 @@
 |---|---|
 | `specs/_steering/`（product / tech / structure） | draft（要件・設計の前提として使用中） |
 | `specs/meeting-transcriber/requirements.md` | approved（2026-10-21）。REQ-4.4 を改訂（録音を既定で保存。利用者の指示） |
-| `specs/meeting-transcriber/requirements.md` の改訂案 | draft（2026-10-22）。REQ-1.3 改訂（スピーカーの表示）、REQ-1.6・REQ-2.7 追加（スピーカーの案内、相手の無音の警告）。承認待ち |
+| `specs/meeting-transcriber/requirements.md` の改訂案 | draft（2026-10-22）。REQ-1.3 改訂（スピーカーの表示）、REQ-1.6・REQ-2.7・REQ-2.8 追加（スピーカーの案内、相手の無音の警告、両方の無音の警告）。承認待ち |
 | `specs/meeting-transcriber/design.md` | approved（2026-10-21）。4.2・4.3・5.2 の改訂と、録音の既定の変更（3.4・3.5）も承認済み（2026-10-21） |
 | `specs/meeting-transcriber/tasks.md` | approved（2026-10-21） |
 | `specs/speaker-diarization/requirements.md`（次版） | draft（2026-10-21） |
