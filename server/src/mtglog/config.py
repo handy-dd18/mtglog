@@ -36,6 +36,8 @@ class Config:
     vad_min_segment_ms: int = 250
     # 切断後に記録を保持する時間（design 4.2）
     resume_timeout_s: int = 600
+    # 無音の警告を出すまでの時間。0 で無効（design 3.6）
+    silence_warning_sec: int = 120
 
 
 def load_config(path: str | Path | None = None, overrides: dict | None = None) -> Config:

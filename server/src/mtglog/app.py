@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import Config
 from .frames import CHANNEL_NAMES, ChannelAssembler, parse_frame
 from .segmenter import Segment, Segmenter, SegmenterParams
+from .silence import SilenceMonitor
 from .transcriber import Engine, Job, TranscriberWorker
 from .writer import SPEAKER_LABELS, Writer, fmt_offset, new_output_dir
 
@@ -61,6 +62,7 @@ class Session:
         starts = {ch: int(start_pos.get(name, 0)) for ch, name in CHANNEL_NAMES.items()}
         self.assemblers = {ch: ChannelAssembler(starts[ch]) for ch in CHANNEL_NAMES}
         self.segmenters = {ch: Segmenter(vad_factory(), params, start=starts[ch]) for ch in CHANNEL_NAMES}
+        self.silence = SilenceMonitor(cfg.silence_warning_sec, origin=max(starts.values()))
         self.ws: WebSocket | None = None
         self.disconnected_at: float | None = None
         self.pending = 0
@@ -80,6 +82,19 @@ class Session:
         self.writer.write_audio(frame.channel, new)
         for seg in self.segmenters[frame.channel].push(new):
             self._enqueue(frame.channel, seg)
+        self._check_silence()
+
+    def now(self) -> int:
+        return max(a.received for a in self.assemblers.values())
+
+    def device_changed(self) -> None:
+        self.silence.device_changed(self.now())
+        self._check_silence()
+
+    def _check_silence(self) -> None:
+        last_voice = {ch: s.last_voice for ch, s in self.segmenters.items()}
+        for msg in self.silence.update(self.now(), last_voice):
+            self.send(msg)
 
     def _enqueue(self, channel: int, seg: Segment) -> None:
         self.pending += 1
@@ -254,6 +269,11 @@ def create_app(
                     session.disconnected_at = None
                     log.info("記録を再開しました: %s", session.id)
                     await ws.send_text(json.dumps(_started(session)))
+                    for m in session.silence.active_messages():
+                        await _safe_send(ws, m)
+                elif kind == "device_changed":
+                    if session is not None:
+                        session.device_changed()
                 elif kind == "stop":
                     if session is None:
                         continue

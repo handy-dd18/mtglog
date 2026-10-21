@@ -27,3 +27,6 @@ vad_min_silence_ms = 600
 vad_pad_ms = 200
 vad_max_segment_ms = 20000
 vad_min_segment_ms = 250
+
+# 相手（または自分と相手の両方）の発話がないまま、この秒数がたったら取得ページで警告する。0 で無効
+silence_warning_sec = 120

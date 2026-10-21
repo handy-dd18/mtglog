@@ -71,6 +71,8 @@ class Segmenter:
         self.speech_start = 0
         self.silence_run = 0
         self.probs: list[tuple[int, float]] = []
+        # 最後に発話（開始のしきい値以上）を検出した窓の終わりの位置。無音の警告（design 3.6）に使う
+        self.last_voice: int | None = None
 
     @property
     def buf_end(self) -> int:
@@ -100,6 +102,8 @@ class Segmenter:
 
     def _step(self, pos: int, prob: float, out: list[Segment]) -> None:
         p = self.p
+        if prob >= p.start_threshold:
+            self.last_voice = pos + WINDOW
         if not self.in_speech:
             if prob >= p.start_threshold:
                 self.in_speech = True
