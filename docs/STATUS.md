@@ -11,7 +11,8 @@
 | `specs/_steering/`（product / tech / structure） | draft（要件・設計の前提として使用中） |
 | `specs/meeting-transcriber/requirements.md` | approved（2026-10-21）。REQ-4.4 を改訂（録音を既定で保存。利用者の指示） |
 | `specs/meeting-transcriber/requirements.md` の改訂 | approved（2026-10-22）。REQ-1.3 改訂、REQ-1.6・REQ-2.7・REQ-2.8 追加（スピーカーの表示と案内、無音の警告） |
-| `specs/meeting-transcriber/design.md` の改訂案 | draft（2026-10-22）。2.1・2.2（スピーカーの表示）、2.6・3.6（無音の警告）、3.5・4.2 の追加。承認待ち |
+| `specs/meeting-transcriber/design.md` の改訂 | approved（2026-10-22）。2.1・2.2（スピーカーの表示）、2.6・3.6（無音の警告）、3.5・4.2 の追加 |
+| `specs/meeting-transcriber/tasks.md` の改訂案 | draft（2026-10-22）。フェーズ 5（T5.1〜T5.3）を追加。承認待ち |
 | `specs/meeting-transcriber/design.md` | approved（2026-10-21）。4.2・4.3・5.2 の改訂と、録音の既定の変更（3.4・3.5）も承認済み（2026-10-21） |
 | `specs/meeting-transcriber/tasks.md` | approved（2026-10-21） |
 | `specs/speaker-diarization/requirements.md`（次版） | draft（2026-10-21） |

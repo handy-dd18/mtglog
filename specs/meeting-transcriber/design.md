@@ -3,7 +3,8 @@ status: approved
 approved_at: 2026-10-21
 revised: 2026-10-21（4.3 を追加、4.2 と 5.2 を実装に合わせて更新。3.4・3.5 で録音の既定を「保存する」に変更）
 revision_approved_at: 2026-10-21
-revision_draft: 2026-10-22（2.1・2.2 のスピーカーの表示、2.6・3.6 の無音の警告、3.5・4.2 の追加。要件の 2026-10-22 改訂に対応。承認待ち）
+revised_2: 2026-10-22（2.1・2.2 のスピーカーの表示、2.6・3.6 の無音の警告、3.5・4.2 の追加。要件の 2026-10-22 改訂に対応）
+revision_2_approved_at: 2026-10-22
 feature: meeting-transcriber
 requirements: approved (2026-10-21、改訂は 2026-10-22 承認)
 ---
