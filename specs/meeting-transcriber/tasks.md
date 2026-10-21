@@ -5,6 +5,7 @@ feature: meeting-transcriber
 design: approved (2026-10-21、改訂は 2026-10-22 承認)
 revised: 2026-10-22（フェーズ 5 を追加）
 revision_approved_at: 2026-10-22
+revised_2: 2026-10-22（フェーズ 6 を追加。利用者が実装まで進めるよう指示し、承認済みとして扱う）
 ---
 
 # 実装タスク: 会議音声のローカル文字起こし
@@ -102,6 +103,22 @@ revision_approved_at: 2026-10-22
   - 実施メモ: 取得ページに「スピーカー（相手の声の取得元）」の行と案内、`ms-settings:sound` のリンクを加えた。警告の文は `lib.js` の `silenceMessage`。`node --test` 14 件、`pytest` 49 件（外部 URL の検出を含む）が成功。`server/tests/e2e_silence.py`（ヘッドレス Chromium、警告まで 3 秒）で、警告の表示、閉じるボタン、閉じた後に再表示されないことを確かめた。`e2e_browser.py` の通し確認も成功（2026-10-22）。README の記録のしかたと「うまく動かないとき」を更新した。
 - [ ] **T5.3 本番 PC での確認**（手動）
   - 完了条件（手動）: 本番 PC の取得ページに、既定の再生デバイスの名前と案内が表示される。Teams のスピーカーを Windows の既定と違うデバイスにして記録すると、設定時間の後に `remote` の警告が出る。自分も相手も黙っていると `both` の警告が出て、話すと消える。
+
+## フェーズ 6: 公式モデルの準備（2026-10-22 追加）
+
+- [x] **T6.1 モデルの準備スクリプト**（REQ-6.1 / design 5.3）
+  - 内容: `scripts/setup_models.sh` と `scripts/setup_models.py` を作る。固定した版の公式モデル（`openai/whisper-large-v3-turbo`、`openai/whisper-small`）を取得し、使い捨ての環境（CPU 用の PyTorch）で変換して `models/whisper-large-v3-turbo`、`models/whisper-small` に置く。`SOURCE.json` を書き、一時ディレクトリを消す。準備済みなら飛ばす。
+  - 完了条件: 開発用 PC で実行し、2 つのモデルが作られ、`SOURCE.json` に取得元・版・各ファイルの SHA-256 が記録されること。実行後に一時ディレクトリが残らないこと。2 回目の実行が変換をせずに終わること。
+  - 実施メモ: 開発用 PC で 1 分 10 秒（WSL のメモリ 4 GB）。`whisper-large-v3-turbo` 780 MB、`whisper-small` 237 MB。一時ディレクトリは残らず、2 回目の実行は 0.2 秒で終わった。Docker のコンテナ内での実行でも、各ファイルの SHA-256 が一致した（2026-10-22）。
+- [x] **T6.2 サーバーと起動スクリプトの切り替え**（REQ-3.5, 5.1, 5.2, 6.1 / design 3.3, 3.5, 5.2, 5.3）
+  - 内容: サーバーは `model_dir` の下の変換済みモデルだけを読み込み、なければ準備の手順を案内して終了する。インターネットから取得する処理を消す。設定の既定値を `whisper-large-v3-turbo`、`whisper-small` にする。`scripts/start.sh` と Docker のエントリーポイントで、起動前に `setup_models.sh` を実行する。README と設定例を直す。
+  - 完了条件: `pytest` で、モデルのディレクトリがないときに案内付きのエラーになること、ディレクトリ名とパスのどちらでも指定できることを確かめる。`scripts/start.sh` で起動し、変換したモデルで文字起こしできること。Docker（CPU 用の設定）で起動できること。
+  - 実施メモ: `pytest` 53 件が成功（モデルがないときの案内、名前とパスでの指定、CPU への切り替えで隠れないこと、準備するモデルが `openai/` だけであること）。`scripts/start.sh` で `whisper-large-v3-turbo / cuda` が起動した。モデルがないときは `scripts/setup_models.sh` を案内して終了した。Docker イメージで `whisper-small / cpu` が起動した（2026-10-22）。
+- [x] **T6.3 変換したモデルの確認**
+  - 完了条件: 開発用 PC で、テスト用の音声（`server/tests/data/`）の文字起こしが、これまでの第三者の変換モデル（`large-v3-turbo`）と変換したモデルで一致する、または差が句読点などの軽微なものに限られること。CPU の `whisper-small` でも文字起こしできること。結果を実施メモに残す。
+  - 実施メモ: `ja_me.wav`、`ja_remote.wav` の文字起こしは、第三者の変換モデルと変換したモデルで完全に一致した。`whisper-small`（CPU）も内容は同じで、句読点だけ違った。`MTGLOG_GPU_TESTS=1` の結合テスト 3 件も成功（2026-10-22）。
+- [ ] **T6.4 本番 PC での準備**（手動）
+  - 完了条件（手動）: 本番 PC で `git pull` 後に `scripts/start.sh` を実行し、モデルの準備から起動まで終わること。以前のモデル（`models/models--*`）を削除しても動くこと。
 
 ## 検証結果
 

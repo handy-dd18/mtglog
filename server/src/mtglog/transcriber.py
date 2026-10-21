@@ -51,17 +51,31 @@ def preload_cuda_libs() -> None:
                         log.debug("読み込めないライブラリ %s: %s", lib, e)
 
 
+class ModelNotFoundError(RuntimeError):
+    pass
+
+
+def resolve_model(model: str, model_dir: str) -> Path:
+    """変換済みのモデルのディレクトリを返す（design 5.3）。名前なら model_dir の下を、パスならそのまま使う。
+
+    インターネットからは取得しない（REQ-6.1）。faster-whisper はディレクトリを渡すと外部へ接続しない。
+    """
+    path = Path(model)
+    if not path.is_dir():
+        path = Path(model_dir) / model
+    if not (path / "model.bin").is_file():
+        raise ModelNotFoundError(
+            f"モデル {model} が {path} にありません。scripts/setup_models.sh を実行して準備してください"
+        )
+    return path
+
+
 class WhisperEngine:
-    def __init__(self, model: str, device: str, compute_type: str, download_root: str) -> None:
+    def __init__(self, model: str, device: str, compute_type: str, model_dir: str) -> None:
         from faster_whisper import WhisperModel
 
-        kwargs = {"device": device, "compute_type": compute_type, "download_root": download_root}
-        try:
-            # 取得済みのモデルがあれば外部へ接続しない（REQ-6.1）
-            self.model = WhisperModel(model, local_files_only=True, **kwargs)
-        except Exception:  # noqa: BLE001 - 未取得の場合の例外の型はモデルの取得元によって異なる
-            log.info("モデル %s を取得します（初回のみ外部へ接続します）", model)
-            self.model = WhisperModel(model, **kwargs)
+        path = resolve_model(model, model_dir)
+        self.model = WhisperModel(str(path), device=device, compute_type=compute_type)
         self.description = f"{model} / {device} / {compute_type}"
 
     def transcribe(self, audio: np.ndarray, language: str) -> str:
@@ -84,6 +98,8 @@ def load_engine(cfg) -> tuple[Engine, str | None]:
             engine = WhisperEngine(cfg.model, "cuda", cfg.compute_type, cfg.model_dir)
             engine.transcribe(np.zeros(16000, dtype=np.float32), cfg.language)  # 実行時のライブラリ不足をここで検出する
             return engine, None
+        except ModelNotFoundError:
+            raise
         except Exception as e:
             if cfg.device == "cuda":
                 raise

@@ -52,6 +52,14 @@ WSL2 の既定のネットワーク設定では、Windows 側から `localhost` 
 
 既定は faster-whisper の `large-v3-turbo`、計算型 `int8_float16`。6GB の VRAM に収まり、日本語の精度と速度の釣り合いがよいため。GPU が使えない環境では `small` を CPU（`int8`）で動かす。
 
+#### モデルの出どころ（2026-10-22 改訂）
+
+モデルは、OpenAI が Hugging Face で公開している公式のもの（`openai/whisper-large-v3-turbo`、`openai/whisper-small`）だけを使う。faster-whisper 用の形式（CTranslate2）は OpenAI からは公開されていないので、利用者の PC で公式のモデルを取得して変換する。第三者が変換して公開したモデル（`mobiuslabsgmbh/…`、`Systran/…`）は使わない。本番 PC で使えるモデルの条件が厳しい可能性があり、出どころを公式に限ると説明しやすいためである。
+
+- 変換したモデルを GitHub などで配布しない。自分が第三者の変換モデルの配布元になるためである。
+- 変換用のツール（PyTorch など）は使い捨ての環境に入れ、変換が終わったら消す。セットアップを重くしないためである。
+- 本番 PC の WSL から Hugging Face に接続できることを確認した（2026-10-21）。
+
 ## 実行基盤の優先順位
 
 1. WSL2 上で直接実行（第一候補）。

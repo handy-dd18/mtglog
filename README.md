@@ -20,7 +20,7 @@ Windows                                  WSL2（または Docker）
    └─ 画面共有の音声 → 「相手」
 ```
 
-本番 PC では Windows 側で独自の exe を実行できないため、Windows 側では既存の Edge で Web ページを開くだけにしている。処理はすべて WSL 上で行い、音声も結果も PC の外へ送らない（外部への通信は、モデルの初回取得だけ）。詳しくは [specs/_steering/tech.md](specs/_steering/tech.md) を参照。
+本番 PC では Windows 側で独自の exe を実行できないため、Windows 側では既存の Edge で Web ページを開くだけにしている。処理はすべて WSL 上で行い、音声も結果も PC の外へ送らない（外部への通信は、初回のセットアップでのパッケージとモデルの取得だけ）。詳しくは [specs/_steering/tech.md](specs/_steering/tech.md) を参照。
 
 ## 必要なもの
 
@@ -61,16 +61,16 @@ cd mtglog
 scripts/start.sh
 ```
 
-初回は依存パッケージとモデル（約 1.6 GB）を取得するので数分かかる。2 回目以降は外部へ接続しない。
+初回は依存パッケージを取得し、文字起こしモデルを準備するので数分かかる（モデルの準備は下の「文字起こしモデル」を参照）。2 回目以降は外部へ接続しない。
 
 ```
-モデル: large-v3-turbo / cuda / int8_float16
+モデル: whisper-large-v3-turbo / cuda / int8_float16
 
 取得ページ: http://localhost:8765/  （Windows の Edge で開く）
 停止するには Ctrl+C
 ```
 
-と表示されたら起動している。GPU が使えない環境では、自動で CPU 用のモデル（`small`）に切り替わり、警告が表示される。
+と表示されたら起動している。GPU が使えない環境では、自動で CPU 用のモデル（`whisper-small`）に切り替わり、警告が表示される。
 
 引数で設定を変えられる。
 
@@ -82,6 +82,22 @@ scripts/start.sh --device cpu          # GPU を使わない
 ```
 
 毎回同じ設定を使うなら、`config.example.toml` を `config.toml` という名前でコピーして編集する。`scripts/start.sh` が自動で読み込む。
+
+### 文字起こしモデル
+
+モデルは、OpenAI が Hugging Face で公式に公開している Whisper（`openai/whisper-large-v3-turbo` と `openai/whisper-small`）だけを使う。faster-whisper 用の形式は OpenAI から公開されていないので、初回の起動時に `scripts/setup_models.sh` が公式のモデルを取得し、この PC の中で変換する。第三者が変換したモデルは使わない。
+
+- GPU の有無にかかわらず、GPU 用（`models/whisper-large-v3-turbo`、約 0.8 GB）と CPU 用（`models/whisper-small`、約 0.25 GB）の両方を準備する。
+- 取得する版はスクリプトに固定している。各モデルの `SOURCE.json` に、取得元、版、各ファイルの SHA-256 が記録される。
+- 変換用のツール（CPU 用の PyTorch など）は使い捨ての環境に入れ、終わったら一時ファイルごと消す。準備の間だけ、約 4 GB の空きが必要になる。WSL の仮想ディスクは、ファイルを消しても自動では縮まないことがある。
+- 準備済みなら何もしない。単独で実行することもできる（`scripts/setup_models.sh`）。
+- サーバーはインターネットからモデルを取得しない。モデルがなければ、準備を案内して終了する。
+
+以前の版（2026-10-21 まで）は、第三者が変換したモデルを `models/models--…` に自動で取得していた。今は使わないので、次のコマンドで削除してよい。
+
+```bash
+rm -rf models/models--* models/.locks models/CACHEDIR.TAG models/blobs
+```
 
 ### Docker で起動する（PowerShell）
 
@@ -100,7 +116,7 @@ docker compose -f docker/compose.yaml up --build
 docker compose -f docker/compose.yaml -f docker/compose.cpu.yaml up --build
 ```
 
-コンテナの中でも `http://localhost:8765/` で開ける（公開先はこの PC の localhost だけ）。結果は `output/`、モデルは `models/` に保存される。
+コンテナの中でも `http://localhost:8765/` で開ける（公開先はこの PC の localhost だけ）。結果は `output/`、モデルは `models/` に保存される。初回の起動時は、コンテナの中で `scripts/setup_models.sh` が動いてモデルを準備する。
 
 ## 記録のしかた
 
@@ -147,7 +163,7 @@ docker compose -f docker/compose.yaml -f docker/compose.cpu.yaml up --build
 
 ```bash
 cd server && uv run pytest                 # サーバーの単体テスト
-MTGLOG_GPU_TESTS=1 uv run pytest           # 実モデルを使う結合テスト（GPU、モデル取得済み）
+MTGLOG_GPU_TESTS=1 uv run pytest           # 実モデルを使う結合テスト（GPU、モデル準備済み）
 uv run --with playwright python tests/e2e_browser.py   # ヘッドレス Chromium での通し確認（libasound2 が必要）
 uv run --with playwright python tests/e2e_silence.py   # 無音の警告の表示の確認（同上）
 cd web && npm test                         # 取得ページの単体テスト

@@ -9,7 +9,7 @@ services:
       - "127.0.0.1:8765:8765"  # ホストの localhost にだけ公開する（REQ-6.2）
     volumes:
       - ../output:/app/output
-      - ../models:/app/models  # 初回に取得したモデルを保持し、2 回目以降は外部へ接続しない（REQ-6.1）
+      - ../models:/app/models  # 初回の起動で準備した公式モデルを保持する。2 回目以降は外部へ接続しない（REQ-6.1）
     # 出力とモデルのファイルをホストの利用者の所有にする（WSL の UID / GID が 1000 以外なら UID, GID を設定する）
     user: "${UID:-1000}:${GID:-1000}"
     environment:

@@ -14,11 +14,13 @@ RUN uv python install 3.12 && uv sync --frozen --no-dev --no-install-project
 COPY server/src ./src
 RUN uv sync --frozen --no-dev
 COPY web /app/web
+COPY scripts/setup_models.sh scripts/setup_models.py /app/scripts/
+COPY docker/entrypoint.sh /app/docker/
 # 任意の UID で実行できるよう、読み取りと実行を全員に許可する
-RUN chmod -R a+rX /app /opt/python
+RUN chmod -R a+rX /app /opt/python && chmod a+x /app/scripts/setup_models.sh /app/docker/entrypoint.sh
 ENV UV_CACHE_DIR=/tmp/uv-cache HF_HOME=/tmp/hf
 
 WORKDIR /app
 EXPOSE 8765
-# コンテナ内では 0.0.0.0 で待ち受け、ホスト側は compose.yaml で 127.0.0.1 にだけ公開する（REQ-6.2）
-ENTRYPOINT ["uv", "run", "--project", "/app/server", "--no-sync", "mtglog", "serve", "--host", "0.0.0.0", "--model-dir", "/app/models", "--output-dir", "/app/output"]
+# 起動時にモデルを準備してからサーバーを起動する（docker/entrypoint.sh）
+ENTRYPOINT ["/app/docker/entrypoint.sh"]

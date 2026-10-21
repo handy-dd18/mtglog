@@ -49,7 +49,7 @@ def test_worker_processes_in_order_and_survives_errors():
 
 
 class FakeWhisper:
-    def __init__(self, model, device, compute_type, download_root):
+    def __init__(self, model, device, compute_type, model_dir):
         if device == "cuda":
             raise RuntimeError("CUDA driver not found")
         self.description = f"{model} / {device} / {compute_type}"
@@ -62,7 +62,7 @@ def test_load_engine_falls_back_to_cpu(monkeypatch):
     monkeypatch.setattr(transcriber, "WhisperEngine", FakeWhisper)
     monkeypatch.setattr(transcriber, "preload_cuda_libs", lambda: None)
     engine, warning = load_engine(Config(device="auto"))
-    assert engine.description == "small / cpu / int8"
+    assert engine.description == "whisper-small / cpu / int8"
     assert "CPU" in warning and "CUDA driver not found" in warning
 
 
@@ -76,4 +76,23 @@ def test_load_engine_cuda_only_raises(monkeypatch):
 def test_load_engine_cpu_without_warning(monkeypatch):
     monkeypatch.setattr(transcriber, "WhisperEngine", FakeWhisper)
     engine, warning = load_engine(Config(device="cpu"))
-    assert engine.description.startswith("small / cpu") and warning is None
+    assert engine.description.startswith("whisper-small / cpu") and warning is None
+
+
+def test_resolve_model_by_name_or_path(tmp_path):
+    d = tmp_path / "whisper-small"
+    d.mkdir()
+    (d / "model.bin").write_bytes(b"")
+    assert transcriber.resolve_model("whisper-small", str(tmp_path)) == d
+    assert transcriber.resolve_model(str(d), "/nonexistent") == d
+
+
+def test_missing_model_is_reported_without_download(tmp_path):
+    with pytest.raises(transcriber.ModelNotFoundError, match="setup_models.sh"):
+        transcriber.resolve_model("whisper-small", str(tmp_path))
+
+
+def test_missing_model_is_not_hidden_by_cpu_fallback(monkeypatch, tmp_path):
+    monkeypatch.setattr(transcriber, "preload_cuda_libs", lambda: None)
+    with pytest.raises(transcriber.ModelNotFoundError):
+        load_engine(Config(device="auto", model_dir=str(tmp_path)))

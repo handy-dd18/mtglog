@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    for noisy in ("faster_whisper", "httpx", "huggingface_hub"):
+    for noisy in ("faster_whisper",):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     cfg = config_mod.from_args(args)
     if args.command == "serve":
@@ -28,11 +28,14 @@ def serve_cmd(cfg: config_mod.Config) -> None:
     import uvicorn
 
     from .app import create_app
-    from .transcriber import load_engine
+    from .transcriber import ModelNotFoundError, load_engine
     from .vad import SileroVAD
 
     print("モデルを読み込んでいます…", flush=True)
-    engine, warning = load_engine(cfg)
+    try:
+        engine, warning = load_engine(cfg)
+    except ModelNotFoundError as e:
+        raise SystemExit(f"エラー: {e}") from None
     print(f"モデル: {engine.description}", flush=True)
     if warning:
         print(f"警告: {warning}", flush=True)

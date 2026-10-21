@@ -9,7 +9,7 @@ def test_defaults():
     cfg = load_config()
     assert cfg.port == 8765
     assert cfg.language == "ja"
-    assert cfg.model == "large-v3-turbo"
+    assert cfg.model == "whisper-large-v3-turbo"
     assert cfg.compute_type == "int8_float16"
     assert cfg.headset_keywords == DEFAULT_HEADSET_KEYWORDS
     assert cfg.save_audio is True
@@ -21,7 +21,7 @@ def test_file(tmp_path):
     p.write_text('port = 9000\nlanguage = "en"\nheadset_keywords = ["Foo"]\nsave_audio = false\n', encoding="utf-8")
     cfg = load_config(p)
     assert (cfg.port, cfg.language, cfg.headset_keywords, cfg.save_audio) == (9000, "en", ["Foo"], False)
-    assert cfg.model == "large-v3-turbo"
+    assert cfg.model == "whisper-large-v3-turbo"
 
 
 def test_args_override_file(tmp_path):

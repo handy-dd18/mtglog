@@ -32,7 +32,15 @@ def test_docker_publishes_only_to_localhost():
     assert ports and all(p.startswith("127.0.0.1:") for p in ports)
 
 
-def test_model_is_loaded_offline_first():
-    """取得済みのモデルは local_files_only で読み、外部へ接続しない（REQ-6.1）。"""
+def test_server_never_downloads_models():
+    """サーバーは変換済みのモデルのディレクトリだけを読み、外部から取得しない（REQ-6.1、design 5.3）。"""
     src = (ROOT / "server" / "src" / "mtglog" / "transcriber.py").read_text(encoding="utf-8")
-    assert "local_files_only=True" in src
+    assert "WhisperModel(str(path)" in src
+    assert "download_root" not in src and "huggingface" not in src
+
+
+def test_models_come_only_from_openai():
+    """準備するモデルは OpenAI 公式のリポジトリだけ（specs/_steering/tech.md）。"""
+    src = (ROOT / "scripts" / "setup_models.py").read_text(encoding="utf-8")
+    repos = re.findall(r'"repo": "([^"]+)"', src)
+    assert repos and all(r.startswith("openai/") for r in repos)

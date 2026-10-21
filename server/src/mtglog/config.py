@@ -18,10 +18,11 @@ class Config:
     host: str = "127.0.0.1"
     port: int = 8765
     language: str = "ja"
-    model: str = "large-v3-turbo"
+    # model_dir の下の変換済みモデルのディレクトリ名（またはパス）。scripts/setup_models.sh で準備する（design 5.3）
+    model: str = "whisper-large-v3-turbo"
     compute_type: str = "int8_float16"
     device: str = "auto"  # auto / cuda / cpu
-    cpu_model: str = "small"
+    cpu_model: str = "whisper-small"
     cpu_compute_type: str = "int8"
     model_dir: str = "./models"
     headset_keywords: list[str] = field(default_factory=lambda: list(DEFAULT_HEADSET_KEYWORDS))

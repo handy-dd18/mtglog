@@ -5,6 +5,8 @@ revised: 2026-10-21（4.3 を追加、4.2 と 5.2 を実装に合わせて更新
 revision_approved_at: 2026-10-21
 revised_2: 2026-10-22（2.1・2.2 のスピーカーの表示、2.6・3.6 の無音の警告、3.5・4.2 の追加。要件の 2026-10-22 改訂に対応）
 revision_2_approved_at: 2026-10-22
+revised_3: 2026-10-22（5.3 モデルの準備を追加。3.3・3.5・5.2 をそれに合わせて変更）
+revision_3_approved_at: 2026-10-22
 feature: meeting-transcriber
 requirements: approved (2026-10-21、改訂は 2026-10-22 承認)
 ---
@@ -118,6 +120,7 @@ Windows 側で動くのは Edge で開く取得ページだけである（C-1）
 起動時に faster-whisper のモデルを 1 つ読み込み、別スレッドで 1 つのキューを先着順に処理する。2 チャンネルで 1 つのモデルを共有するのは、6 GB の VRAM に `large-v3-turbo` を 2 つ載せる余裕がないためである。
 
 - 呼び出し: `model.transcribe(audio, language=設定値, vad_filter=False, beam_size=1, condition_on_previous_text=False)`。区間の切り出しは 3.2 で済ませているので VAD は無効にする。前の文脈を引き継がないのは、片方のチャンネルの文脈がもう片方に混ざるのを避けるためである。
+- モデルは 5.3 で準備した手元のディレクトリから読み込む。インターネットからは取得しない（2026-10-22 改訂）。
 - 起動時に CUDA で読み込めなければ、`small` / `int8` / CPU で読み込み直し、警告をログに出す（REQ-3.5）。
 - キューの待ち時間と処理時間を発話ごとにログへ出し、REQ-3.3 の遅延を計測できるようにする。
 
@@ -156,8 +159,10 @@ Windows 側で動くのは Edge で開く取得ページだけである（C-1）
 |---|---|
 | `port` | 8765 |
 | `language` | `ja` |
-| `model` | `large-v3-turbo` |
+| `model` | `whisper-large-v3-turbo`（`model_dir` の下のディレクトリ名。2026-10-22 改訂案） |
 | `compute_type` | `int8_float16` |
+| `cpu_model` | `whisper-small`（同上） |
+| `model_dir` | `./models` |
 | `headset_keywords` | `["Headset", "ヘッドセット", "Headphone", "ヘッドホン", "Jabra", "Poly", "Logi"]` |
 | `save_audio` | `true` |
 | `output_dir` | `./output` |
@@ -236,7 +241,32 @@ WebSocket は `/ws` の 1 本で、制御はテキスト（JSON）、音声は�
 
 コンテナから GPU を使うには、Docker Desktop の WSL2 バックエンドか、WSL の Docker エンジンに NVIDIA Container Toolkit が必要である。どちらもない環境では `docker/compose.cpu.yaml` を重ねて CPU で動かす。
 
-取得済みのモデルは `local_files_only` で読み込み、外部へ接続しない（REQ-6.1）。未取得の場合だけ取得する。`HF_HUB_OFFLINE=1` を使わないのは、初回の取得と 2 回目以降の起動を同じ設定で扱えるためである。
+モデルは 5.3 の手順で、ボリュームにした `models/` に準備する（`docker compose run --rm mtglog scripts/setup_models.sh`）。サーバーはモデルを取得しない（REQ-6.1、2026-10-22 改訂案）。
+
+### 5.3 モデルの準備（2026-10-22 改訂）
+
+`scripts/setup_models.sh` が、OpenAI 公式のモデルを取得して faster-whisper 用の形式に変換する（`specs/_steering/tech.md` の「モデルの出どころ」）。GPU の有無にかかわらず、次の 2 つを両方準備する。GPU がある PC でも CPU に切り替わることがあり（REQ-3.5）、その時点で取得できるとは限らないためである。
+
+| 変換後のディレクトリ（`models/` の下） | 取得元（Hugging Face） | 版（コミット） | 保存する型 | ライセンス | 大きさの見込み |
+|---|---|---|---|---|---|
+| `whisper-large-v3-turbo` | `openai/whisper-large-v3-turbo` | `41f01f3fe87f28c78e2fbf8b568835947dd65ed9` | `int8_float16` | MIT | 約 0.8 GB |
+| `whisper-small` | `openai/whisper-small` | `973afd24965f72e36ca33b3055d56a652f456b4d` | `int8` | Apache-2.0 | 約 0.25 GB |
+
+版はスクリプトに固定し、Hugging Face 側の更新で中身が変わらないようにする。版を上げるときは、スクリプトと上の表を同じコミットで変える。
+
+手順:
+
+1. 作業用の一時ディレクトリ（`models/.setup-tmp/`）を作る。`HF_HOME` と `UV_CACHE_DIR` をこの中に向け、取得したファイルとツールのキャッシュがほかに残らないようにする。
+2. `huggingface_hub` で、固定した版のうち変換に要るファイルだけを取得する（`config.json`、`model.safetensors`、`tokenizer.json`、`preprocessor_config.json`、`generation_config.json` など）。`pytorch_model.bin` など、同じ重みの別形式は取得しない。
+3. `uv run --no-project` の使い捨ての環境に、`ctranslate2`（サーバーと同じ版）、`transformers`、CPU 用の `torch` を入れて、`ct2-transformers-converter` で変換する。`tokenizer.json` と `preprocessor_config.json` は変換先にコピーする（large-v3 系は入力の形式をこのファイルから読むため）。
+4. 変換先に `SOURCE.json` を書く。取得元、版、変換ツールの版、保存する型、変換した日時、各ファイルの SHA-256 を記録する。
+5. 一時ディレクトリを丸ごと消す。
+
+- 変換先がすでにあり、`SOURCE.json` の取得元と版がスクリプトと一致すれば、そのモデルは飛ばす。2 回目以降の実行はすぐ終わる。
+- 一時的に必要な空き容量は約 4 GB（取得したファイル、変換ツール、変換結果）。終了時に残るのは変換後の約 1 GB だけである。WSL の仮想ディスクは自動では縮まない場合があることを README に書く。
+- `scripts/start.sh` は、モデルのディレクトリがなければ `setup_models.sh` を先に実行する。利用者が別の手順を覚えなくても、初回の起動でモデルが準備される（REQ-5.1）。
+- サーバーは、設定した名前のディレクトリが `model_dir` の下になければ、`setup_models.sh` を実行するよう案内して終了する。以前の版が自動で取得した第三者の変換モデル（`models/models--*`）は使わない。README で削除を案内する。
+- 開発用 PC で、変換したモデルと、これまでの第三者の変換モデルで、テスト用の音声の文字起こしが一致するかを比べる（tasks で行う）。
 
 ## 6. 検証項目と、確かめ方
 
@@ -278,7 +308,7 @@ V2 と V6 は確認済みである。残る V1, V3〜V5, V7 は、1 つの検証
 | REQ-5.1, 5.2 | 5.1, 5.2 |
 | REQ-5.3 | 2.5, 4.2 |
 | REQ-5.4 | 2.4 |
-| REQ-6.1 | 5.2 |
+| REQ-6.1 | 5.2, 5.3 |
 | REQ-6.2 | 5.1, 5.2 |
 | REQ-6.3 | 1 |
 | REQ-6.4 | 2.1 |

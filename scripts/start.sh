@@ -23,4 +23,5 @@ if [[ -f "$ROOT/config.toml" ]] && [[ " ${ARGS[*]-} " != *" --config "* ]]; then
 fi
 
 uv sync --project server "${EXTRA[@]}" -q
+"$ROOT/scripts/setup_models.sh" "$ROOT/models"  # 初回だけ公式のモデルを取得・変換する（design 5.3）
 exec uv run --project server --no-sync mtglog serve --model-dir "$ROOT/models" --output-dir "$ROOT/output" "${ARGS[@]}"

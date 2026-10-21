@@ -7,10 +7,10 @@ port = 8765
 # 文字起こしの言語
 language = "ja"
 
-# モデル（GPU 用と CPU 用）
-model = "large-v3-turbo"
+# モデル（GPU 用と CPU 用）。models/ の下の、scripts/setup_models.sh で準備したディレクトリ名
+model = "whisper-large-v3-turbo"
 compute_type = "int8_float16"
-cpu_model = "small"
+cpu_model = "whisper-small"
 cpu_compute_type = "int8"
 device = "auto"   # auto / cuda / cpu
 
