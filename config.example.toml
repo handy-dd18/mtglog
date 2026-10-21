@@ -1,0 +1,29 @@
+# 設定ファイルの例。config.toml という名前でコピーすると scripts/start.sh が読み込む。
+# 同名のコマンドライン引数（例: --no-save-audio, --language en）で上書きできる。
+
+# 待ち受けるポート。Edge では http://localhost:<port>/ を開く
+port = 8765
+
+# 文字起こしの言語
+language = "ja"
+
+# モデル（GPU 用と CPU 用）
+model = "large-v3-turbo"
+compute_type = "int8_float16"
+cpu_model = "small"
+cpu_compute_type = "int8"
+device = "auto"   # auto / cuda / cpu
+
+# マイクの初期選択でヘッドセットとみなす名前の一部
+headset_keywords = ["Headset", "ヘッドセット", "Headphone", "ヘッドホン", "Jabra", "Poly", "Logi"]
+
+# 音声を WAV で保存するか（既定: 保存する）
+save_audio = true
+
+# 発話区間の切り出し
+vad_start_threshold = 0.5
+vad_end_threshold = 0.35
+vad_min_silence_ms = 600
+vad_pad_ms = 200
+vad_max_segment_ms = 20000
+vad_min_segment_ms = 250

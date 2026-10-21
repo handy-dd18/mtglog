@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# 実行結果・音声・検証結果（個人の会議内容を含むため管理しない）
+output/
+spike/results/
+*.wav
+
+# モデルのキャッシュ
+models/
+.cache/
+
+# 個人の設定
+config.toml
+
+# テスト用の合成音声（会議の内容ではない）
+!server/tests/data/*.wav

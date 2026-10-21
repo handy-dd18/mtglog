@@ -1,0 +1,20 @@
+# PowerShell から: docker compose -f docker/compose.yaml up --build
+services:
+  mtglog:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: mtglog:latest
+    ports:
+      - "127.0.0.1:8765:8765"  # ホストの localhost にだけ公開する（REQ-6.2）
+    volumes:
+      - ../output:/app/output
+      - ../models:/app/models  # 初回に取得したモデルを保持し、2 回目以降は外部へ接続しない（REQ-6.1）
+    # 出力とモデルのファイルをホストの利用者の所有にする（WSL の UID / GID が 1000 以外なら UID, GID を設定する）
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      TZ: ${TZ:-JST-9}  # 出力ディレクトリ名と時刻を日本時間にする
+      HOME: /tmp
+    command: ${MTGLOG_ARGS:-}
+    gpus: all
+    stop_grace_period: 60s  # 停止時に文字起こしの残りと出力の確定を待つ

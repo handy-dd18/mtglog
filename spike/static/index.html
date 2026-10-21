@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGログ 検証ページ</title>
+<style>
+  :root { --bg:#fafafa; --fg:#222; --muted:#666; --card:#fff; --line:#ddd; --ok:#1a7f37; --ng:#cf222e; --warn:#9a6700; --accent:#0969da; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#16181c; --fg:#e6e6e6; --muted:#9aa0a6; --card:#1f2228; --line:#353a42; --ok:#3fb950; --ng:#f85149; --warn:#d29922; --accent:#58a6ff; } }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--fg); font:14px/1.6 system-ui, "Segoe UI", "Yu Gothic UI", sans-serif; }
+  main { max-width:960px; margin:0 auto; display:grid; gap:16px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  h1 { font-size:20px; margin:0; } h2 { font-size:16px; margin:0 0 8px; }
+  .tag { display:inline-block; font-size:12px; padding:0 6px; border-radius:4px; border:1px solid var(--line); color:var(--muted); margin-left:6px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0; }
+  button { font:inherit; padding:4px 12px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  select, input[type=text] { font:inherit; padding:3px 6px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:4px; max-width:100%; }
+  meter { width:200px; height:14px; }
+  pre { margin:4px 0; padding:8px; background:var(--bg); border-radius:4px; overflow-x:auto; font-size:12px; white-space:pre-wrap; word-break:break-all; }
+  .ok { color:var(--ok); } .ng { color:var(--ng); } .warn { color:var(--warn); } .muted { color:var(--muted); }
+  table { border-collapse:collapse; width:100%; } td, th { border-top:1px solid var(--line); padding:4px 6px; text-align:left; vertical-align:top; }
+  #log { max-height:200px; overflow-y:auto; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>MTGログ 検証ページ（T0.1）</h1>
+    <p class="muted">本番 PC の Edge で V1, V3, V4, V5, V7 を確かめるためのページです。音声はこの PC の WSL 上のサーバーにだけ送られ、文字起こしも保存もしません（受信したバイト数と時刻だけを記録します）。</p>
+  </header>
+
+  <section>
+    <h2>環境</h2>
+    <pre id="env">読み込み中…</pre>
+    <div class="row"><button id="btnDevices">デバイス一覧を取得（マイクの許可を求めます）</button></div>
+    <pre id="devices" class="muted">未取得</pre>
+  </section>
+
+  <section>
+    <h2>自分: マイク <span class="tag">V1</span></h2>
+    <div class="row">
+      <select id="micSelect"><option value="default">既定のマイク</option></select>
+      <label><input type="checkbox" id="micProc" checked> エコー除去・ノイズ抑制・自動音量</label>
+      <button id="btnMic">マイクを開く</button>
+    </div>
+    <div class="row">音量 <meter id="micMeter" min="0" max="1" value="0"></meter> <span id="micState" class="muted">未取得</span></div>
+  </section>
+
+  <section>
+    <h2>相手: 画面共有の音声 <span class="tag">V1</span><span class="tag">V3</span><span class="tag">V7</span></h2>
+    <div class="row">
+      <button id="btnScreen">画面全体＋システム音声を共有（V1）</button>
+      <button id="btnWindow">ウィンドウ＋ウィンドウの音声を共有（V3）</button>
+      <button id="btnStopVideo">映像トラックを止める（V7）</button>
+    </div>
+    <p class="muted">V1: 選択画面で「画面全体」を選び、「システム オーディオも共有する」をオンにしてください。<br>
+       V3: 選択画面で「ウィンドウ」タブから Teams の会議ウィンドウを選び、音声共有のスイッチがあればオンにしてください。</p>
+    <div class="row">音量 <meter id="dispMeter" min="0" max="1" value="0"></meter> <span id="dispState" class="muted">未取得</span></div>
+    <pre id="dispInfo" class="muted">未取得</pre>
+  </section>
+
+  <section>
+    <h2>送信と受信状況 <span class="tag">V4</span><span class="tag">V5</span></h2>
+    <div class="row">
+      <button id="btnSend" class="primary">送信を開始</button>
+      <span id="wsState" class="muted">未接続</span>
+    </div>
+    <p class="muted">V5: 送信中にこのタブを背景にする・ウィンドウを最小化する・別のタブを前面にするなどして 10 分ほど置き、戻ってから「欠落」と「最大受信間隔」を確認してください。</p>
+    <table>
+      <thead><tr><th>チャンネル</th><th>受信秒数</th><th>欠落（回 / 秒）</th><th>重複</th><th>最大受信間隔</th></tr></thead>
+      <tbody id="stats"><tr><td colspan="5" class="muted">送信していません</td></tr></tbody>
+    </table>
+    <p class="muted">サーバー側の経過時間: <span id="elapsed">-</span> 秒 / 背景にあった合計時間: <span id="hiddenTotal">0</span> 秒</p>
+  </section>
+
+  <section>
+    <h2>検証結果の記入</h2>
+    <div class="row">検証した端末
+      <select id="machine"><option value="">選んでください</option><option>本番PC</option><option>開発用PC</option><option>その他</option></select>
+    </div>
+    <table id="verdicts"></table>
+    <div class="row"><button id="btnSave" class="primary">結果を保存（WSL の spike/results/ に保存）</button> <span id="saveState" class="muted"></span></div>
+  </section>
+
+  <section>
+    <h2>イベント記録</h2>
+    <pre id="log"></pre>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

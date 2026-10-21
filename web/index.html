@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTGログ</title>
+<style>
+  :root { --bg:#f6f7f9; --fg:#1f2328; --muted:#656d76; --card:#fff; --line:#d0d7de; --ok:#1a7f37; --ng:#cf222e; --warn:#9a6700; --accent:#0969da; --rec:#cf222e; --me:#0969da; --remote:#8250df; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0d1117; --fg:#e6edf3; --muted:#8d96a0; --card:#161b22; --line:#30363d; --ok:#3fb950; --ng:#f85149; --warn:#d29922; --accent:#4493f8; --rec:#f85149; --me:#4493f8; --remote:#a371f7; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.6 system-ui, "Segoe UI", "Yu Gothic UI", "Meiryo", sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:16px; display:grid; gap:12px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  h1 { font-size:18px; margin:0; } h2 { font-size:15px; margin:0 0 8px; }
+  #statusBar { position:sticky; top:0; z-index:1; display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:10px 16px; background:var(--card); border-bottom:1px solid var(--line); }
+  #status { font-weight:700; padding:2px 10px; border-radius:999px; border:2px solid currentColor; }
+  #status.idle { color:var(--muted); } #status.recording { color:var(--rec); } #status.reconnecting { color:var(--warn); } #status.stopping { color:var(--warn); }
+  #status.recording::before { content:"● "; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0; }
+  label.field { display:flex; gap:6px; align-items:center; }
+  button { font:inherit; padding:5px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.danger { background:var(--rec); color:#fff; border-color:var(--rec); }
+  select, input[type=text] { font:inherit; padding:3px 6px; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:4px; max-width:100%; }
+  meter { width:140px; height:12px; }
+  .muted { color:var(--muted); } .ok { color:var(--ok); } .ng { color:var(--ng); } .warn { color:var(--warn); }
+  #notices:empty { display:none; }
+  #notices div { padding:6px 10px; border-radius:6px; margin:4px 0; border:1px solid var(--line); }
+  #notices .warn { border-color:var(--warn); } #notices .ng { border-color:var(--ng); }
+  #transcript { list-style:none; margin:0; padding:0; max-height:60vh; overflow-y:auto; }
+  #transcript li { padding:4px 0; border-top:1px solid var(--line); display:grid; grid-template-columns:auto auto 1fr; gap:8px; }
+  #transcript .t { color:var(--muted); font-variant-numeric:tabular-nums; }
+  #transcript .sp { font-weight:700; } #transcript .sp.me { color:var(--me); } #transcript .sp.remote { color:var(--remote); }
+  details summary { cursor:pointer; color:var(--muted); }
+  code { font-size:12px; }
+</style>
+</head>
+<body>
+<div id="statusBar">
+  <h1>MTGログ</h1>
+  <span id="status" class="idle">停止中</span>
+  <span id="elapsed" class="muted"></span>
+  <span class="muted">自分 <meter id="meterMe" min="0" max="1" value="0"></meter></span>
+  <span class="muted">相手 <meter id="meterRemote" min="0" max="1" value="0"></meter></span>
+</div>
+<main>
+  <div id="notices"></div>
+
+  <section>
+    <h2>デバイス</h2>
+    <div class="row">
+      <label class="field">マイク <select id="micSelect"><option value="">読み込み中…</option></select></label>
+      <button id="btnSwitchMic" hidden>このマイクに切り替える</button>
+      <button id="btnRefresh">一覧を更新</button>
+    </div>
+    <div class="row">既定の再生デバイス: <span id="outputName" class="muted">取得中…</span></div>
+    <p class="muted" style="margin:4px 0 0">相手の声は「既定の再生デバイス」に出ている音から取ります。ヘッドセットを Windows の既定の再生デバイスにし、Teams / Zoom の出力先もヘッドセットにしてください。</p>
+  </section>
+
+  <section>
+    <h2>記録</h2>
+    <div class="row">
+      <button id="btnStart" class="primary">記録を開始</button>
+      <button id="btnStop" class="danger" disabled>記録を停止</button>
+      <button id="btnReshare" hidden>相手の音声を共有し直す</button>
+    </div>
+    <p class="muted" style="margin:4px 0">開始すると画面共有の選択画面が開きます。<strong>「画面全体」</strong>を選び、<strong>「システム オーディオも共有する」</strong>をオンにして「共有」を押してください（画面の映像は使いません）。</p>
+    <details>
+      <summary>設定</summary>
+      <div class="row"><label class="field">言語 <input type="text" id="language" size="4"></label> <span class="muted">例: ja, en</span></div>
+      <div class="row"><label class="field"><input type="checkbox" id="micProc" checked> マイクのエコー除去・ノイズ抑制・自動音量調整</label></div>
+      <div class="row"><label class="field"><input type="checkbox" id="saveAudio" checked> 音声を WAV で保存する</label></div>
+      <div class="row muted">モデル: <span id="engine">-</span></div>
+    </details>
+    <p id="outputDir" class="muted" style="margin:4px 0 0"></p>
+  </section>
+
+  <section>
+    <h2>文字起こし</h2>
+    <ul id="transcript"></ul>
+    <p id="emptyNote" class="muted" style="margin:0">記録を開始すると、確定した発話がここに表示されます。</p>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
